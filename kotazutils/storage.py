@@ -1,3 +1,4 @@
+from audioop import add
 import sqlite3
 from contextlib import contextmanager
 import yaml
@@ -7,7 +8,7 @@ try:
 except ImportError:
     from yaml import Loader, Dumper
 
-
+print = __import__('rich').print
 import weakref
 
 
@@ -227,3 +228,186 @@ class AutoYaml:
     def save(self):
         with open(self.name, 'w') as f:
             yaml.dump(self.data.value, f)
+
+
+class ColumnAttribute:
+    def __init__(self, name, type, default=None, primary_key=False, auto_increment=False, unique=False, index=False,):
+        self.name = name
+        self.type = type
+        self.default = default
+        self.primary_key = primary_key
+        self.auto_increment = auto_increment
+        self.unique = unique
+        self.index = index
+
+    def to_sql(self):
+        additional = 'DEFAULT {}'.format(self.default) if self.default else ''
+        if self.primary_key:
+            additional += ' PRIMARY KEY'
+        if self.auto_increment:
+            additional += ' AUTOINCREMENT'
+        if self.unique:
+            additional += ' UNIQUE'
+        if self.index:
+            additional += ' INDEX'
+        return '{} {} {}'.format(self.name, self.type, additional)
+    
+    @classmethod
+    def from_sql(cls, sql):
+        name, type, additional = sql.split(' ', 2)
+        additional = additional.split()
+        primary_key = 'PRIMARY KEY' in additional
+        auto_increment = 'AUTOINCREMENT' in additional
+        unique = 'UNIQUE' in additional
+        index = 'INDEX' in additional
+        return cls(name, type, primary_key=primary_key, auto_increment=auto_increment, unique=unique, index=index)
+    
+    @classmethod
+    def from_dict(self, dict):
+        """
+        {
+            "pos": ["INTEGER", "PRIMARY KEY", "AUTOINCREMENT", "UNIQUE"],
+            "id": ["INTEGER", "UNIQUE"],
+            "name": "Alex",
+            "age": 25,
+            "city": "Moscow",
+            "rate": 5.5,
+            "uuid": ["TEXT", "UNIQUE"],
+        } -> 
+        [
+            ColumnAttribute('id', 'INTEGER', primary_key=True, auto_increment=True),
+            ColumnAttribute('name', 'TEXT'),
+            ColumnAttribute('age', 'INTEGER'),
+            ColumnAttribute('city', 'TEXT'),
+            ColumnAttribute('rate', 'REAL'),
+            ColumnAttribute('description', 'TEXT', default='Lorem ipsum'),
+            ColumnAttribute('uuid', 'TEXT', unique=True)
+        ]
+        """
+        columns = []
+        for key, value in dict.items():
+            if isinstance(value, str):
+                column_type = 'TEXT'
+                columns.append(ColumnAttribute(key, column_type, default=value))
+            elif isinstance(value, int):
+                column_type = 'INTEGER'
+                columns.append(ColumnAttribute(key, column_type, default=value))
+            elif isinstance(value, float):
+                column_type = 'REAL'
+                columns.append(ColumnAttribute(key, column_type, default=value))
+            elif isinstance(value, bool):
+                column_type = 'INTEGER'
+                columns.append(ColumnAttribute(key, column_type, default=int(value)))
+            elif isinstance(value, list):
+                if all([item in ['PRIMARY KEY', 'AUTOINCREMENT', 'UNIQUE'] for item in value[1:]]) and value[0] in ['INTEGER', 'REAL', 'TEXT']:
+                    column_type = value[0]
+                    primary_key = True if 'PRIMARY KEY' in value else False
+                    auto_increment = True if 'AUTOINCREMENT' in value else False
+                    unique = True if 'UNIQUE' in value else False
+                    columns.append(ColumnAttribute(key, column_type, primary_key=primary_key, auto_increment=auto_increment, unique=unique))
+                else:
+                    column_type = 'TEXT'
+                    additional = ujson.dumps(value)
+                    columns.append(ColumnAttribute(key, column_type, default=additional))
+            elif isinstance(value, dict):
+                column_type = 'TEXT'
+                additional = ujson.dumps(value)
+                columns.append(ColumnAttribute(key, column_type, default=additional))
+        return columns
+    def __repr__(self):
+        return '<ColumnAttribute {}>'.format(self.name)
+
+    
+class Columns:
+    def __init__(self, columns):
+        """
+        {
+            "name": ColumnAttribute,
+            ...
+        }
+        """
+        self.columns = columns
+    def to_sql(self):
+        return ', '.join(column.to_sql() for column in self.columns.values())
+
+class Table:
+    def __init__(self, cursor, name):
+        self.cursor = cursor
+        self.name = name
+    
+    def insert(self, *data):
+        """
+        insert({"name": "Alex", "age": 25, "city": "Moscow", "rate": 5.5, "description": "Lorem ipsum", "uuid": "123456789"})
+        """
+        columns = ', '.join(data[0].keys())
+        values = ', '.join(['?'] * len(data[0]))
+        sql = 'INSERT INTO {} ({}) VALUES ({})'.format(self.name, columns, values)
+        self.cursor.execute(sql, [data[0][key] for key in data[0].keys()])
+        return self.cursor.lastrowid
+
+    def get(self, order=None, limit=None, offset=None, **kwargs):
+        additional = ''
+        if order:
+            additional += 'ORDER BY {} DESC'.format(order)
+        if limit:
+            additional += ' LIMIT {}'.format(limit)
+        if offset:
+            additional += ' OFFSET {}'.format(offset)
+        sql = 'SELECT * FROM {} {}'.format(self.name, additional)
+        self.cursor.execute(sql)
+        return self.cursor.fetchall()
+class SimpleBase:
+    def __init__(self, name):
+        self.name = name
+        self.connection = sqlite3.connect(self.name)
+        self.cursor = self.connection.cursor()
+
+    def __del__(self):
+        self.connection.close()
+    
+    def create_table(self, table_name, columns):
+        columns = ', '.join([column.to_sql() for column in columns])
+        self.connection.execute('CREATE TABLE IF NOT EXISTS {} ({})'.format(table_name, columns))
+        self.connection.commit()
+        return Table(self.cursor, table_name)
+    
+
+base = SimpleBase('test.db')
+t1 = base.create_table('test', [ColumnAttribute('name', 'TEXT', primary_key=True), ColumnAttribute('age', 'INTEGER')])
+
+t2 = base.create_table('test2', ColumnAttribute.from_dict({
+            "pos": ["INTEGER", "PRIMARY KEY", "AUTOINCREMENT", "UNIQUE"],
+            "id": ["INTEGER", "UNIQUE"],
+            "name": "Alex",
+            "age": 25,
+            "city": "Moscow",
+            "rate": 5.5,
+            "uuid": ["TEXT", "UNIQUE"],
+        }))
+t1.insert({"name": "Alex", "age": 25})
+t1.insert({"name": "Alex2", "age": 24})
+t1.insert({"name": "Alex4", "age": 26})
+print(t1.get())
+print(t1.get(order='age'))
+
+t2.insert({
+            "id": 2,
+            "name": "Alex",
+            "age": 25,
+            "city": "Moscow",
+            "rate": 5.5,
+            "uuid": "AABBCC",
+        })
+t2.insert({
+            "id": 4,
+            "name": "Alex",
+            "age": 25,
+            "city": "Moscow",
+            "rate": 5.5,
+            "uuid": "AABBCCDD",
+        })
+        
+print(t2.get())
+
+
+
