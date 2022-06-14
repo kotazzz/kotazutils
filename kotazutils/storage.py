@@ -372,42 +372,6 @@ class SimpleBase:
         return Table(self.cursor, table_name)
     
 
-base = SimpleBase('test.db')
-t1 = base.create_table('test', [ColumnAttribute('name', 'TEXT', primary_key=True), ColumnAttribute('age', 'INTEGER')])
-
-t2 = base.create_table('test2', ColumnAttribute.from_dict({
-            "pos": ["INTEGER", "PRIMARY KEY", "AUTOINCREMENT", "UNIQUE"],
-            "id": ["INTEGER", "UNIQUE"],
-            "name": "Alex",
-            "age": 25,
-            "city": "Moscow",
-            "rate": 5.5,
-            "uuid": ["TEXT", "UNIQUE"],
-        }))
-t1.insert({"name": "Alex", "age": 25})
-t1.insert({"name": "Alex2", "age": 24})
-t1.insert({"name": "Alex4", "age": 26})
-print(t1.get())
-print(t1.get(order='age'))
-
-t2.insert({
-            "id": 2,
-            "name": "Alex",
-            "age": 25,
-            "city": "Moscow",
-            "rate": 5.5,
-            "uuid": "AABBCC",
-        })
-t2.insert({
-            "id": 4,
-            "name": "Alex",
-            "age": 25,
-            "city": "Moscow",
-            "rate": 5.5,
-            "uuid": "AABBCCDD",
-        })
-        
-print(t2.get())
 
 
 
