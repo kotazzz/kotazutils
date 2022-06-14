@@ -3,12 +3,13 @@ import sqlite3
 from contextlib import contextmanager
 import yaml
 import ujson
+
 try:
     from yaml import CLoader as Loader, CDumper as Dumper
 except ImportError:
     from yaml import Loader, Dumper
 
-print = __import__('rich').print
+print = __import__("rich").print
 import weakref
 
 
@@ -77,9 +78,11 @@ class Observer(object):
         self.init_value = init_value
         self.callback = callback
         self.kwargs = kwargs
-        self.kwargs.update({
-            'callback': callback,
-        })
+        self.kwargs.update(
+            {
+                "callback": callback,
+            }
+        )
 
         self._value = None
 
@@ -93,8 +96,7 @@ class Observer(object):
 
     @property
     def value(self):
-        """Returns the content of attached data.
-        """
+        """Returns the content of attached data."""
         return self._value
 
     def _get_attr_name(self, instance):
@@ -142,8 +144,7 @@ class Observer(object):
         self.divulge()
 
     def divulge(self):
-        """Divulges that data content has been change calling callback.
-        """
+        """Divulges that data content has been change calling callback."""
         # we want to evoke the very first observer with complete set of data, not the nested one
         if self._parent_observer:
             self._parent_observer.divulge()
@@ -167,8 +168,8 @@ class Observer(object):
         attr = getattr(self._value, item)
 
         if item in (
-                    ['append', 'extend', 'insert', 'remove', 'pop', 'sort', 'reverse'] + # list methods
-                    ['clear', 'pop', 'update']                                           # dict methods
+            ["append", "extend", "insert", "remove", "pop", "sort", "reverse"]
+            + ["clear", "pop", "update"]  # list methods  # dict methods
         ):
             return observe(self, attr)
         return attr
@@ -179,7 +180,6 @@ class AutoJson:
         self.name = name
         self.data = Observer({}, self.on_change)
         self.observe = True
-        
 
     @contextmanager
     def disabled_observe(self):
@@ -188,17 +188,18 @@ class AutoJson:
         self.observe = True
 
     def on_change(self):
-        with open(self.name, 'w') as f:
+        with open(self.name, "w") as f:
             ujson.dump(self.data.value, f)
 
     def load(self):
         with self.disabled_observe():
-            with open(self.name, 'r') as f:
+            with open(self.name, "r") as f:
                 self.data.value = ujson.load(f)
-    
+
     def save(self):
-        with open(self.name, 'w') as f:
+        with open(self.name, "w") as f:
             ujson.dump(self.data.value, f)
+
 
 class AutoYaml:
     def __init__(self, name):
@@ -213,25 +214,34 @@ class AutoYaml:
         self.observe = True
 
     def on_change(self):
-        with open(self.name, 'w') as f:
+        with open(self.name, "w") as f:
             yaml.dump(self.data.value, f)
 
     def load(self):
         try:
             with self.disabled_observe():
-                with open(self.name, 'r') as f:
+                with open(self.name, "r") as f:
                     self.data.value = yaml.load(f)
         except FileNotFoundError:
             self.save()
             self.load()
 
     def save(self):
-        with open(self.name, 'w') as f:
+        with open(self.name, "w") as f:
             yaml.dump(self.data.value, f)
 
 
 class ColumnAttribute:
-    def __init__(self, name, type, default=None, primary_key=False, auto_increment=False, unique=False, index=False,):
+    def __init__(
+        self,
+        name,
+        type,
+        default=None,
+        primary_key=False,
+        auto_increment=False,
+        unique=False,
+        index=False,
+    ):
         self.name = name
         self.type = type
         self.default = default
@@ -241,27 +251,34 @@ class ColumnAttribute:
         self.index = index
 
     def to_sql(self):
-        additional = 'DEFAULT {}'.format(self.default) if self.default else ''
+        additional = "DEFAULT {}".format(self.default) if self.default else ""
         if self.primary_key:
-            additional += ' PRIMARY KEY'
+            additional += " PRIMARY KEY"
         if self.auto_increment:
-            additional += ' AUTOINCREMENT'
+            additional += " AUTOINCREMENT"
         if self.unique:
-            additional += ' UNIQUE'
+            additional += " UNIQUE"
         if self.index:
-            additional += ' INDEX'
-        return '{} {} {}'.format(self.name, self.type, additional)
-    
+            additional += " INDEX"
+        return "{} {} {}".format(self.name, self.type, additional)
+
     @classmethod
     def from_sql(cls, sql):
-        name, type, additional = sql.split(' ', 2)
+        name, type, additional = sql.split(" ", 2)
         additional = additional.split()
-        primary_key = 'PRIMARY KEY' in additional
-        auto_increment = 'AUTOINCREMENT' in additional
-        unique = 'UNIQUE' in additional
-        index = 'INDEX' in additional
-        return cls(name, type, primary_key=primary_key, auto_increment=auto_increment, unique=unique, index=index)
-    
+        primary_key = "PRIMARY KEY" in additional
+        auto_increment = "AUTOINCREMENT" in additional
+        unique = "UNIQUE" in additional
+        index = "INDEX" in additional
+        return cls(
+            name,
+            type,
+            primary_key=primary_key,
+            auto_increment=auto_increment,
+            unique=unique,
+            index=index,
+        )
+
     @classmethod
     def from_dict(self, dict):
         """
@@ -273,7 +290,7 @@ class ColumnAttribute:
             "city": "Moscow",
             "rate": 5.5,
             "uuid": ["TEXT", "UNIQUE"],
-        } -> 
+        } ->
         [
             ColumnAttribute('id', 'INTEGER', primary_key=True, auto_increment=True),
             ColumnAttribute('name', 'TEXT'),
@@ -287,37 +304,53 @@ class ColumnAttribute:
         columns = []
         for key, value in dict.items():
             if isinstance(value, str):
-                column_type = 'TEXT'
+                column_type = "TEXT"
                 columns.append(ColumnAttribute(key, column_type, default=value))
             elif isinstance(value, int):
-                column_type = 'INTEGER'
+                column_type = "INTEGER"
                 columns.append(ColumnAttribute(key, column_type, default=value))
             elif isinstance(value, float):
-                column_type = 'REAL'
+                column_type = "REAL"
                 columns.append(ColumnAttribute(key, column_type, default=value))
             elif isinstance(value, bool):
-                column_type = 'INTEGER'
+                column_type = "INTEGER"
                 columns.append(ColumnAttribute(key, column_type, default=int(value)))
             elif isinstance(value, list):
-                if all([item in ['PRIMARY KEY', 'AUTOINCREMENT', 'UNIQUE'] for item in value[1:]]) and value[0] in ['INTEGER', 'REAL', 'TEXT']:
+                if all(
+                    [
+                        item in ["PRIMARY KEY", "AUTOINCREMENT", "UNIQUE"]
+                        for item in value[1:]
+                    ]
+                ) and value[0] in ["INTEGER", "REAL", "TEXT"]:
                     column_type = value[0]
-                    primary_key = True if 'PRIMARY KEY' in value else False
-                    auto_increment = True if 'AUTOINCREMENT' in value else False
-                    unique = True if 'UNIQUE' in value else False
-                    columns.append(ColumnAttribute(key, column_type, primary_key=primary_key, auto_increment=auto_increment, unique=unique))
+                    primary_key = True if "PRIMARY KEY" in value else False
+                    auto_increment = True if "AUTOINCREMENT" in value else False
+                    unique = True if "UNIQUE" in value else False
+                    columns.append(
+                        ColumnAttribute(
+                            key,
+                            column_type,
+                            primary_key=primary_key,
+                            auto_increment=auto_increment,
+                            unique=unique,
+                        )
+                    )
                 else:
-                    column_type = 'TEXT'
+                    column_type = "TEXT"
                     additional = ujson.dumps(value)
-                    columns.append(ColumnAttribute(key, column_type, default=additional))
+                    columns.append(
+                        ColumnAttribute(key, column_type, default=additional)
+                    )
             elif isinstance(value, dict):
-                column_type = 'TEXT'
+                column_type = "TEXT"
                 additional = ujson.dumps(value)
                 columns.append(ColumnAttribute(key, column_type, default=additional))
         return columns
-    def __repr__(self):
-        return '<ColumnAttribute {}>'.format(self.name)
 
-    
+    def __repr__(self):
+        return "<ColumnAttribute {}>".format(self.name)
+
+
 class Columns:
     def __init__(self, columns):
         """
@@ -327,35 +360,39 @@ class Columns:
         }
         """
         self.columns = columns
+
     def to_sql(self):
-        return ', '.join(column.to_sql() for column in self.columns.values())
+        return ", ".join(column.to_sql() for column in self.columns.values())
+
 
 class Table:
     def __init__(self, cursor, name):
         self.cursor = cursor
         self.name = name
-    
+
     def insert(self, *data):
         """
         insert({"name": "Alex", "age": 25, "city": "Moscow", "rate": 5.5, "description": "Lorem ipsum", "uuid": "123456789"})
         """
-        columns = ', '.join(data[0].keys())
-        values = ', '.join(['?'] * len(data[0]))
-        sql = 'INSERT INTO {} ({}) VALUES ({})'.format(self.name, columns, values)
+        columns = ", ".join(data[0].keys())
+        values = ", ".join(["?"] * len(data[0]))
+        sql = "INSERT INTO {} ({}) VALUES ({})".format(self.name, columns, values)
         self.cursor.execute(sql, [data[0][key] for key in data[0].keys()])
         return self.cursor.lastrowid
 
     def get(self, order=None, limit=None, offset=None, **kwargs):
-        additional = ''
+        additional = ""
         if order:
-            additional += 'ORDER BY {} DESC'.format(order)
+            additional += "ORDER BY {} DESC".format(order)
         if limit:
-            additional += ' LIMIT {}'.format(limit)
+            additional += " LIMIT {}".format(limit)
         if offset:
-            additional += ' OFFSET {}'.format(offset)
-        sql = 'SELECT * FROM {} {}'.format(self.name, additional)
+            additional += " OFFSET {}".format(offset)
+        sql = "SELECT * FROM {} {}".format(self.name, additional)
         self.cursor.execute(sql)
         return self.cursor.fetchall()
+
+
 class SimpleBase:
     def __init__(self, name):
         self.name = name
@@ -364,14 +401,11 @@ class SimpleBase:
 
     def __del__(self):
         self.connection.close()
-    
+
     def create_table(self, table_name, columns):
-        columns = ', '.join([column.to_sql() for column in columns])
-        self.connection.execute('CREATE TABLE IF NOT EXISTS {} ({})'.format(table_name, columns))
+        columns = ", ".join([column.to_sql() for column in columns])
+        self.connection.execute(
+            "CREATE TABLE IF NOT EXISTS {} ({})".format(table_name, columns)
+        )
         self.connection.commit()
         return Table(self.cursor, table_name)
-    
-
-
-
-
