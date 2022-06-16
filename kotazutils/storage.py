@@ -382,9 +382,17 @@ class SimpleBase:
         )
         self.connection.commit()
         return Table(self.cursor, table_name)
-
+import _ctypes
+##################
 class StorageManager:
     def __init__(self, name):
         self.observer, self.load, self.save = create_autoyaml('t', get_save=True)
-    
+        self.name = name
+        
+
+s = StorageManager('t')
+print(s.observer.data.value)
+s.observer.data = {'name': 'Alex', 'age': 25, 'city': 'Moscow', 'rate': 5.5, 'description': 'Lorem ipsum', 'uuid': '2'}
+print(s.observer.data.value)
+
 
