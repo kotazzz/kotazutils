@@ -1,8 +1,8 @@
+import ujson
 from audioop import add
 import sqlite3
 from contextlib import contextmanager
 import yaml
-import ujson
 
 try:
     from yaml import CLoader as Loader, CDumper as Dumper
@@ -175,62 +175,35 @@ class Observer(object):
         return attr
 
 
-class AutoJson:
-    def __init__(self, name):
-        self.name = name
-        self.data = Observer({}, self.on_change)
-        self.observe = True
+def create_autoyaml(name, get_load=True, get_save=False, ):
+    def action(self, instance, value):
+        with open(name, "w") as f:
+            yaml.dump(value, f, Dumper=Dumper)
+            
+    class AutoYaml(object):
+        data = Observer('', action)
 
-    @contextmanager
-    def disabled_observe(self):
-        self.observe = False
-        yield
-        self.observe = True
-
-    def on_change(self):
-        with open(self.name, "w") as f:
-            ujson.dump(self.data.value, f)
-
-    def load(self):
-        with self.disabled_observe():
-            with open(self.name, "r") as f:
-                self.data.value = ujson.load(f)
-
-    def save(self):
-        with open(self.name, "w") as f:
-            ujson.dump(self.data.value, f)
-
-
-class AutoYaml:
-    def __init__(self, name):
-        self.name = name
-        self.data = Observer({}, self.on_change)
-        self.observe = True
-
-    @contextmanager
-    def disabled_observe(self):
-        self.observe = False
-        yield
-        self.observe = True
-
-    def on_change(self):
-        with open(self.name, "w") as f:
-            yaml.dump(self.data.value, f)
-
-    def load(self):
-        try:
-            with self.disabled_observe():
-                with open(self.name, "r") as f:
-                    self.data.value = yaml.load(f)
-        except FileNotFoundError:
-            self.save()
-            self.load()
-
-    def save(self):
-        with open(self.name, "w") as f:
-            yaml.dump(self.data.value, f)
-
-
+    auto = AutoYaml()
+    try:
+        with open(name, "r") as f:
+            auto.data = yaml.load(f, Loader=Loader)
+    except FileNotFoundError:
+        auto.data = {}
+    
+    returned = [auto]
+    if get_load:
+        def load():
+            with open(name, "r") as f:
+                auto.data = yaml.load(f, Loader=Loader)
+        returned.append(load)
+    if get_save:
+        def save():
+            with open(name, "w") as f:
+                yaml.dump(dict(auto.data), f, Dumper=Dumper)
+        returned.append(save)
+    return returned
+    
+    
 class ColumnAttribute:
     def __init__(
         self,
@@ -409,3 +382,9 @@ class SimpleBase:
         )
         self.connection.commit()
         return Table(self.cursor, table_name)
+
+class StorageManager:
+    def __init__(self, name):
+        self.observer, self.load, self.save = create_autoyaml('t', get_save=True)
+    
+
