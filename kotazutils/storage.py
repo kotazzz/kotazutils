@@ -1,3 +1,5 @@
+
+import shlex
 import ujson
 from audioop import add
 import sqlite3
@@ -175,8 +177,10 @@ class Observer(object):
         return attr
 
 
-def create_autoyaml(name, get_load=True, get_save=False, ):
+def create_autoyaml(name, get_load=True, get_save=False, additional=None):
     def action(self, instance, value):
+        if additional:
+            additional(self, instance, value)
         with open(name, "w") as f:
             yaml.dump(value, f, Dumper=Dumper)
             
@@ -199,7 +203,7 @@ def create_autoyaml(name, get_load=True, get_save=False, ):
     if get_save:
         def save():
             with open(name, "w") as f:
-                yaml.dump(dict(auto.data), f, Dumper=Dumper)
+                yaml.dump(dict(auto.data.value), f, Dumper=Dumper)
         returned.append(save)
     return returned
     
@@ -382,17 +386,253 @@ class SimpleBase:
         )
         self.connection.commit()
         return Table(self.cursor, table_name)
-import _ctypes
+
 ##################
-class StorageManager:
-    def __init__(self, name):
-        self.observer, self.load, self.save = create_autoyaml('t', get_save=True)
+
+
+
+class StorageColumnAttribute:
+    incompatabilities = []
+    name = "ATTRIBUTE"
+    
+    
+    def __init__(self, *args):
+        self.args = args
+
+    def compatability_check(self, attributes):
+        for attribute in attributes:
+            if attribute.name in self.incompatabilities:
+                raise Exception("Incompatability between {} and {}".format(self.name, attribute.name))
+            if attribute.name == self.name:
+                raise Exception("Attribute {} already exists".format(self.name))
+                
+
+    def callback_universal(self, table, type, value):
+        raise Exception("Not implemented (type: {})".format(type))
+
+    def callback_int(self, table, value):
+        self.callback_universal(table, "INTEGER", value)
+    def callback_float(self, table, value):
+        self.callback_universal(table, "FLOAT", value)
+    def callback_str(self, table, value):
+        self.callback_universal(table, "STR", value)
+    def callback_bool(self, table, value):
+        self.callback_universal(table, "BOOL", value)
+    def callback_dict(self, table, value):
+        self.callback_universal(table, "DICT", value)
+    def callback_list(self, table, value):
+        self.callback_universal(table, "LIST", value)
+    def callback_set(self, table, value):
+        self.callback_universal(table, "SET", value)
+    def callback_uuid(self, table, value):
+        self.callback_universal(table, "UUID", value)
+    def callback_date(self, table, value):
+        self.callback_universal(table, "DATE", value)
+    def callback_timedelta(self, table, value):
+        self.callback_universal(table, "TIMEDELTA", value)
+    def callback_timestamp(self, table, value):
+        self.callback_universal(table, "TIMESTAMP", value)
+    def callback_blob(self, table, value):
+        self.callback_universal(table, "BLOB", value)
+    def callback_null(self, table, value):
+        self.callback_universal(table, "NULL", value)
+    def callback_any(self, table, value):
+        self.callback_universal(table, "ANY", value)
+
+class StorageColumn:
+    def __init__(self, name, type, attributes):
         self.name = name
+        self.type = type
+        self.attributes = attributes
+        
+        # TYPES:   ✅❌    | INT   FLOAT    STR    BOOL  DICT     LIST    SET 
+        # ATTRIBUTES:       |----------------------------------------------------
+        # UNIQUE            | ❌     ❌     ❌     ❌     ❌     ❌     ❌ 
+        # LIMIT (int) (int) | ❌     ❌     ❌     ❌     ❌     ❌     ❌ 
+        # LINK (table name) | ❌     ❌     ❌     ❌     ❌     ❌     ❌ 
+        # AUTOINCREMENT     | ❌     ❌     ❌     ❌     ❌     ❌     ❌ 
+        # DEFAULT (value)   | ❌     ❌     ❌     ❌     ❌     ❌     ❌
+        # REQUIRED          | ❌     ❌     ❌     ❌     ❌     ❌     ❌
+        
+        
+        # TYPES:   ✅❌    | UUID  DATE  TIMEDELTA  TIMESTAMP  BLOB   NULL    ANY
+        # ATTRIBUTES:       |-----------------------------------------------------
+        # UNIQUE            | ❌     ❌     ❌         ❌     ❌     ❌     ❌ 
+        # LIMIT (int) (int) | ❌     ❌     ❌         ❌     ❌     ❌     ❌ 
+        # LINK (table name) | ❌     ❌     ❌         ❌     ❌     ❌     ❌ 
+        # AUTOINCREMENT     | ❌     ❌     ❌         ❌     ❌     ❌     ❌ 
+        # DEFAULT (value)   | ❌     ❌     ❌         ❌     ❌     ❌     ❌ 
+        # REQUIRED          | ❌     ❌     ❌         ❌     ❌     ❌     ❌
+ 
+        # ATTRUBUTE:        | UNIQUE LIMIT LINK AUTOINCREMENT DEFAULT REQUIRED
+        # COMPATABILITY:    |--------------------------------------------------
+        # UNIQUE            | 🟦     ❌     ❌     ❌         ❌     ❌
+        # LIMIT (int) (int) | ❌     🟦     ❌     ❌         ❌     ❌
+        # LINK (table name) | ❌     ❌     🟦     ❌         ❌     ❌
+        # AUTOINCREMENT     | ❌     ❌     ❌     🟦         ❌     ❌
+        # DEFAULT (value)   | ❌     ❌     ❌     ❌         🟦     ❌
+        # REQUIRED          | ❌     ❌     ❌     ❌         ❌     🟦
+
+    def process_insert(self, storage, table, value):
+        callbacks = {
+            "INT": lambda attr: attr.callback_int,
+            "FLOAT": lambda attr: attr.callback_float,
+            "STR": lambda attr: attr.callback_str,
+            "BOOL": lambda attr: attr.callback_bool,
+            "DICT": lambda attr: attr.callback_dict,
+            "LIST": lambda attr: attr.callback_list,
+            "SET": lambda attr: attr.callback_set,
+            "UUID": lambda attr: attr.callback_uuid,
+            "DATE": lambda attr: attr.callback_date,
+            "TIMEDELTA": lambda attr: attr.callback_timedelta,
+            "TIMESTAMP": lambda attr: attr.callback_timestamp,
+            "BLOB": lambda attr: attr.callback_blob,
+            "NULL": lambda attr: attr.callback_null,
+            "ANY": lambda attr: attr.callback_any,
+        }
+        for attribute in self.attributes:
+            attribute = storage.get_attribute(attribute)
+            callbacks[self.type](attribute)(table, value)
+        return value
+            
+    def serialize(self):
+        return {
+            "name": self.name,
+            "type": self.type,
+            "attributes": self.attributes,
+        }
+    
+    @classmethod
+    def deserialize(cls, data):
+        return cls(data["name"], data["type"], data["attributes"])
+
+class StorageColumns:
+    def __init__(self, *columns):
+        self.columns = columns if columns else []
+    def add_column(self, column):
+        self.columns.append(column)
+    def get_columns(self):
+        return self.columns
+    
+    def serialize(self):
+        return [column.serialize() for column in self.columns]
+
+    @classmethod
+    def deserialize(cls, data):
+        columns = []
+        for column in data:
+            columns.append(StorageColumn.deserialize(column))
+        return cls(*columns)
+
+class StorageTable:
+    def __init__(self, storage, name):
+        self.storage = storage
+        self.name = name
+
+        columns = self.storage.data[self.name]["__COLUMNS__"]
+        print(columns)
+        self.columns = StorageColumns().deserialize(columns)
+
+    @property
+    def data(self):
+        return self.storage.data[self.name]["__DATA__"]
+
+
+    def insert(self, **data):
+        for column in self.columns.get_columns():
+            if column.name not in data:
+                raise Exception("Column '{}' is required. Use 'None' to skip".format(column.name))
+        for key in data:
+            if key not in [column.name for column in self.columns.get_columns()]:
+                raise Exception("Column '{}' does not exist".format(key))
+        payload = {}
+        for column in self.columns.get_columns():
+            column.process_insert(self.storage, self,  data[column.name])
+            payload[column.name] = data[column.name]
+        self.storage.data[self.name]["__DATA__"].append(payload)
+        self.storage.save()
+        print(self.storage.data)
         
 
-s = StorageManager('t')
-print(s.observer.data.value)
-s.observer.data = {'name': 'Alex', 'age': 25, 'city': 'Moscow', 'rate': 5.5, 'description': 'Lorem ipsum', 'uuid': '2'}
-print(s.observer.data.value)
+class AttributeUnique(StorageColumnAttribute):
+    incompatabilities = []
+    name = "UNIQUE"
 
+    def callback_universal(self, table, type, value):
+        print(f'Таблица {table.name} получила значение {value} ({type}) для атрибута {self.name}. Аргументы: {self.args}')
+class AttributeLimit(StorageColumnAttribute):
+    incompatabilities = []
+    name = "LIMIT"
+
+    def callback_universal(self, table, type, value):
+        print(f'Таблица {table.name} получила значение {value} ({type}) для атрибута {self.name}. Аргументы: {self.args}')
+
+class StorageManager:
+    def __init__(self, name):
+        self.observer, self.load, self.save = create_autoyaml('t', get_save=True, additional=lambda s, i, v: print('LOG:', v))
+        self.name = name
+        self.attributes = {}
+        attributes = [AttributeUnique, AttributeLimit]
+
+        for attribute in attributes:
+            self.add_attribute(attribute)
+    
+    
+    @property
+    def data(self):
+        return self.observer.data.value
+    
+    @data.setter
+    def data(self, value):
+        self.observer.data = value
+
+    def add_attribute(self, attribute):
+        self.attributes[attribute.name] = attribute
+
+    def get_attribute(self, command):
+        cmd = shlex.split(command)
+        if cmd[0] not in self.attributes:
+            raise Exception("Attribute '{}' does not exist".format(cmd[0]))
+        return self.attributes[cmd[0]](*cmd[1:])
+        
+    def table_add(self, name, columns, force=True):
+        if type(columns) is StorageColumns:
+            pass
+        elif type(columns) is list:
+            columns = StorageColumns(*columns)
+        else:
+            raise TypeError("Columns must be list or StorageColumns")
+    
+        if self.table_exists(self.name) and not force:
+            raise Exception("Table already exists")
+        else:
+            self.observer.data.update(
+                {
+                    name: {
+                        "__COLUMNS__": columns.serialize(),
+                        "__DATA__": [],
+                    }
+                }
+            )
+            return StorageTable(self, name)
+
+    def table_exists(self, name):
+        return name in self.data
+
+
+
+storage = StorageManager("storage.yml")
+table = storage.table_add("test", [
+    StorageColumn("name", "UUID", ["UNIQUE"]),
+    StorageColumn("age", "INT", []),
+    StorageColumn("city", "STR", []),
+    StorageColumn("rate", "FLOAT", ["LIMIT 1 5"]),
+])
+
+table.insert(
+    name=None,
+    age=25,
+    city="Moscow",
+    rate=3.5,
+)
 
