@@ -7,6 +7,7 @@ from prompt_toolkit import ANSI, PromptSession
 
 from prompt_toolkit.completion import Completer, Completion
 
+
 def mark_to_ansi(text, console=None):
     # TODO: may be move to utils?
     if console is None:
@@ -16,6 +17,7 @@ def mark_to_ansi(text, console=None):
     console.file.seek(0)
     return ANSI(val)
 
+
 def get_args(func, exclude_self=True):
     signature = inspect.signature(func)
     return [
@@ -24,6 +26,7 @@ def get_args(func, exclude_self=True):
         if k != "self" or not exclude_self
     ]
 
+
 def get_default_args(func):
     signature = inspect.signature(func)
     return {
@@ -31,11 +34,14 @@ def get_default_args(func):
         for k, v in signature.parameters.items()
         if v.default is not inspect.Parameter.empty
     }
+
+
 class RichCompletion:
     def __init__(self, text, display, meta):
         self.text = text
         self.display = mark_to_ansi(display)
         self.meta = mark_to_ansi(meta)
+
 
 class RichCompleter(Completer):
     def update_completions(self, data):
@@ -46,7 +52,6 @@ class RichCompleter(Completer):
         words = shlex.split(text)
         last_word = words[-1] if words else ""
         completions = self.completions
-        
 
         def data_to_completion(data):
             return Completion(
@@ -86,6 +91,7 @@ class RichCompleter(Completer):
             for completion in completions:
                 yield data_to_completion(completion)
 
+
 class Command:
     def __init__(
         self,
@@ -114,6 +120,7 @@ class Command:
                         args[i] = required_type(args[i])
                     except:
                         errors.append([i, type(args[i]), required_type])
+
     def try_autocast(self, *args):
         """
         >>> try_autocast("1", "true", "String", "1.02")
@@ -126,7 +133,7 @@ class Command:
         }
         new_values = {}
         for i, (name, hint) in enumerate(get_type_hints(self.function).items()):
-            if i > len(args)-1:
+            if i > len(args) - 1:
                 break
             if hint in casters:
                 new_value = casters[hint](args[i])
@@ -139,13 +146,24 @@ class Command:
     def callback(self, *args):
         try:
             all_args = get_args(self.function)
-            non_hinted = [args[i-1] for i, arg in all_args if get_type_hints(self.function).get(arg) is None]
-            return self.function(self, *non_hinted, **self.try_autocast(*args[len(non_hinted):]))
+            non_hinted = [
+                args[i - 1]
+                for i, arg in all_args
+                if get_type_hints(self.function).get(arg) is None
+            ]
+            return self.function(
+                self, *non_hinted, **self.try_autocast(*args[len(non_hinted) :])
+            )
         except Exception as e:
             return self.function(self, *args)
+
     def required(self):
         all_args = get_args(self.function)
-        hinted = [arg for i, arg in all_args if get_type_hints(self.function).get(arg) is not None]
+        hinted = [
+            arg
+            for i, arg in all_args
+            if get_type_hints(self.function).get(arg) is not None
+        ]
         default_values = get_default_args(self.function)
         # return hinted args without default value
         return [arg for arg in hinted if default_values.get(arg) is None]
@@ -163,16 +181,21 @@ class Command:
         default_args = get_default_args(self.function)
         parametrs = []
         for key, value in type_hints.items():
-            parametrs.append(f'<{key}:{value.__name__}{"="+repr(v) if (v:=default_args.get(key)) else ""}>')
+            parametrs.append(
+                f'<{key}:{value.__name__}{"="+repr(v) if (v:=default_args.get(key)) else ""}>'
+            )
         nested_completion = {}
 
         for command in self.subcommands:
-            parametrs[0] = parametrs[0][0]+ f'{command.name}|' + parametrs[0][1:]
+            parametrs[0] = parametrs[0][0] + f"{command.name}|" + parametrs[0][1:]
             nested_completion |= command.make_rich_completion()
 
         return {
-            RichCompletion(self.name, f'[b]{self.name}[/] {" ".join(parametrs)}', self.brief): nested_completion
+            RichCompletion(
+                self.name, f'[b]{self.name}[/] {" ".join(parametrs)}', self.brief
+            ): nested_completion
         }
+
 
 class CliApp:
     def __init__(self, name, description="CLI App", version="1.0.0"):
@@ -189,10 +212,11 @@ class CliApp:
         self.session = PromptSession(self.prompt)
         self.completer = RichCompleter()
         self.state = "init"
-    
+
     def exit_command(self):
         self.console.print("Bye!")
         self
+
     def add_command(self, command):
         self.commands[command.name] = command
 
@@ -209,6 +233,7 @@ class CliApp:
 
     def run(self):
         self.state = "run"
+
         def get_command(args, commands, prev=None):
             for command in commands:
                 if command.name == args[0]:
@@ -217,6 +242,7 @@ class CliApp:
                     else:
                         return command, args[1:]
             return prev, *args
+
         while self.state == "run":
             try:
                 self.completer.update_completions(self.get_completions())
@@ -232,8 +258,10 @@ class CliApp:
                         required = cmd.required()
                         if len(required) > len(args):
                             required_count = len(required) - len(args)
-                            required_sequence = ", ".join(required[len(args):])
-                            self.console.print(f"{cmd.name} requires {required_count} more arguments: {required_sequence}")
+                            required_sequence = ", ".join(required[len(args) :])
+                            self.console.print(
+                                f"{cmd.name} requires {required_count} more arguments: {required_sequence}"
+                            )
                             continue
                         cmd.callback(self, *args)
                     else:
@@ -244,23 +272,28 @@ class CliApp:
                 self.console.print("Используйте Ctrl+D для выхода")
             except Exception:
                 self.console.print_exception()
-        
 
 
 c = CliApp("App")
 
+
 @c.command("echo", "Echo text", "Echo something")
 def echo(self, cli, text: str, times: int = 2, without_hello: bool = False):
     text = "Hello, " + text if not without_hello else text
-    cli.console.print(', '.join([text] * times))
+    cli.console.print(", ".join([text] * times))
+
 
 @echo.subcommand("subcommand", "Echo text", "Echo something")
-def echo_subcommand(self, cli, first_word:str, text: str, times: int = 2, without_hello: bool = False):
+def echo_subcommand(
+    self, cli, first_word: str, text: str, times: int = 2, without_hello: bool = False
+):
     text = first_word + ", " + text if not without_hello else text
-    cli.console.print(', '.join([text] * times))
+    cli.console.print(", ".join([text] * times))
+
 
 @c.command("exit", "Exit from app", "Close this app")
 def exit_(self, cli):
     cli.state = "exit"
+
 
 c.run()
