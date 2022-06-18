@@ -568,8 +568,8 @@ class AttributeLimit(StorageColumnAttribute):
         print(f'Таблица {table.name} получила значение {value} ({type}) для атрибута {self.name}. Аргументы: {self.args}')
 
 class StorageManager:
-    def __init__(self, name):
-        self.observer, self.load, self.save = create_autoyaml('t', get_save=True, additional=lambda s, i, v: print('LOG:', v))
+    def __init__(self, name, log=False):
+        self.observer, self.load, self.save = create_autoyaml('t', get_save=True, additional=(lambda s, i, v: print('LOG:', v)) if log else None)
         self.name = name
         self.attributes = {}
         attributes = [AttributeUnique, AttributeLimit]
@@ -619,20 +619,192 @@ class StorageManager:
     def table_exists(self, name):
         return name in self.data
 
+class SimpleStorage:
+    def __init__(self, name, log=False):
+        self.name = name
+        self.data = {}
+        self.load()
+        
+    
+    def save(self):
+        with open(self.name, "w") as f:
+            f.write(yaml.dump(self.data, Dumper=Dumper))
 
+    def load(self):
+        try:    
+            with open(self.name, "r") as f:
+                self.data = yaml.load(f, Loader=Loader)
+            return True
+        except FileNotFoundError:
+            self.save()
+            self.load()
+            return False
+        
+    def table_add(self, name, default, raise_exception=False):
+        if self.table_exists(name):
+            if raise_exception:
+                raise Exception("Table already exists")
+            else:
+                return self.table_get(name)
+        else:
+            self.observer.data.update(
+                {
+                    name: {
+                        "__DEFAULT__": default,
+                        "__DATA__": [],
 
-storage = StorageManager("storage.yml")
-table = storage.table_add("test", [
-    StorageColumn("name", "UUID", ["UNIQUE"]),
-    StorageColumn("age", "INT", []),
-    StorageColumn("city", "STR", []),
-    StorageColumn("rate", "FLOAT", ["LIMIT 1 5"]),
-])
+                    }
+                }
+            )
+        
+    def table_exists(self, name):
+        return name in self.data
+    
+    def table_get(self, name):
+        return self.data[name]
 
-table.insert(
-    name=None,
-    age=25,
-    city="Moscow",
-    rate=3.5,
-)
+    def table_list(self):
+        return self.data.keys()
+    
+    def table_remove(self, name):
+        if self.table_exists(name):
+            del self.data[name]
+            self.save()
+        else:
+            raise Exception("Table does not exist")
 
+    def table_rename(self, name, new_name):
+        if self.table_exists(name):
+            self.data[new_name] = self.data[name]
+            del self.data[name]
+            self.save()
+        else:
+            raise Exception("Table does not exist")
+
+    def table_default_record(self, name):
+        if self.table_exists(name):
+            return self.data[name]["__DEFAULT__"]
+        else:
+            raise Exception("Table does not exist")
+
+    def table_columns(self, name):
+        if self.table_exists(name):
+            return self.data[name]["__COLUMNS__"].keys()
+        else:
+            raise Exception("Table does not exist")
+    def record_validate(self, name, use_default=True, **data):
+        if self.table_exists(name):
+            columns = self.table_columns(name)
+            default = self.table_default_record(name)
+            for column in columns:
+                if column not in data:
+                    if use_default:
+                        data[column] = default[column]
+                    else:
+                        raise Exception("Column '{}' is required. Use 'None' to skip".format(column))
+            for key in data:
+                if key not in columns:
+                    raise Exception("Column '{}' does not exist".format(key))
+            return True
+        else:
+            raise Exception("Table does not exist")
+
+    def record_add(self, name, **data):
+        if not self.table_exists(name):
+            raise Exception("Table does not exist")
+        if self.record_validate(name, **data):
+            self.data[name]["__DATA__"].append(data)
+            self.save()
+    
+    def record_get_by_id(self, name, id):
+        if not self.table_exists(name):
+            raise Exception("Table does not exist")
+        return self.data[name]["__DATA__"][id]
+
+    def record_get(self, name, *where):
+        """
+        >>> record_get("test", ["field", "value"], ["field2", "value"])
+        {"field": "value", "field2": "value", "other": "other"}
+        """
+        if not self.table_exists(name):
+            raise Exception("Table does not exist")
+        records = self.data[name]["__DATA__"]
+        for i, record in enumerate(records):
+            for field, value in where:
+                if record[field] != value:
+                    break
+            else:
+                return record
+        return None
+    
+    def record_gets(self, name, *where):
+        """
+        >>> record_gets("test", ["field", "value"], ["field2", "value"])
+        [{"field": "value", "field2": "value", "other": "other"}]
+        """
+        if not self.table_exists(name):
+            raise Exception("Table does not exist")
+        records = self.data[name]["__DATA__"]
+        result = []
+        for i, record in enumerate(records):
+            for field, value in where:
+                if record[field] != value:
+                    break
+            else:
+                result.append(record)
+        return result
+    
+    def record_get_id(self, name, *where):
+        """
+        >>> record_get_id("test", ["field", "value"], ["field2", "value"])
+        0
+        """
+        if not self.table_exists(name):
+            raise Exception("Table does not exist")
+        records = self.data[name]["__DATA__"]
+        for i, record in enumerate(records):
+            for field, value in where:
+                if record[field] != value:
+                    break
+            else:
+                return i
+        return None
+    
+    def record_remove(self, name, *where):
+        if not self.table_exists(name):
+            raise Exception("Table does not exist")
+        records = self.data[name]["__DATA__"]
+        for i, record in enumerate(records):
+            for field, value in where:
+                if record[field] != value:
+                    break
+            else:
+                del records[i]
+        self.save()
+    
+    def record_remove_by_id(self, name, id):
+        if not self.table_exists(name):
+            raise Exception("Table does not exist")
+        del self.data[name]["__DATA__"][id]
+        self.save()
+    
+    def record_removes(self, name, *where):
+        if not self.table_exists(name):
+            raise Exception("Table does not exist")
+        records = self.data[name]["__DATA__"]
+        while record := self.record_get(name, *where):
+            self.record_remove(name, *where)
+        self.save()
+    
+    def record_update(self, name, *where, **data):
+        if not self.table_exists(name):
+            raise Exception("Table does not exist")
+        records = self.data[name]["__DATA__"]
+        for i, record in enumerate(records):
+            for field, value in where:
+                if record[field] != value:
+                    break
+            else:
+                for key, value in data.items():
+                    record[key] = value
+        self.save()
