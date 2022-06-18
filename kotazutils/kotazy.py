@@ -2,8 +2,6 @@ from lark import *
 from .safeeval import EvalProcessor
 
 
-
-
 class KotazyParser:
     """Парсер Котазиланга"""
 

@@ -1,6 +1,7 @@
 import ast
 import operator as op
 
+
 class EvalProcessor:
     """Процессор вычисления математических выражений с поддержкой вызовов функций и переменных"""
 

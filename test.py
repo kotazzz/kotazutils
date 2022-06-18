@@ -1,4 +1,9 @@
-from kotazutils.storage import SimpleBase, ColumnAttribute, StorageManager, StorageColumn
+from kotazutils.storage import (
+    SimpleBase,
+    ColumnAttribute,
+    StorageManager,
+    StorageColumn,
+)
 
 import unittest
 
@@ -67,6 +72,8 @@ class TestSimpleBase(unittest.TestCase):
             (1, 2, "Alex", 25, "Moscow", 5.5, "AABBCC"),
             (2, 4, "Alex", 25, "Moscow", 5.5, "AABBCCDD"),
         ]
+
+
 class TestSimpleBase(unittest.TestCase):
     def setUp(self) -> None:
         storage = StorageManager("test.yml")
@@ -76,12 +83,15 @@ class TestSimpleBase(unittest.TestCase):
         return super().tearDown()
 
     def test_storage_master(self):
-        table = self.storage.table_add("test", [
-            StorageColumn("name", "UUID", ["UNIQUE"]),
-            StorageColumn("age", "INT", []),
-            StorageColumn("city", "STR", []),
-            StorageColumn("rate", "FLOAT", ["LIMIT 1 5"]),
-        ])
+        table = self.storage.table_add(
+            "test",
+            [
+                StorageColumn("name", "UUID", ["UNIQUE"]),
+                StorageColumn("age", "INT", []),
+                StorageColumn("city", "STR", []),
+                StorageColumn("rate", "FLOAT", ["LIMIT 1 5"]),
+            ],
+        )
 
         table.insert(
             name=None,

@@ -1,4 +1,3 @@
-
 import shlex
 import ujson
 from audioop import add
@@ -183,9 +182,9 @@ def create_autoyaml(name, get_load=True, get_save=False, additional=None):
             additional(self, instance, value)
         with open(name, "w") as f:
             yaml.dump(value, f, Dumper=Dumper)
-            
+
     class AutoYaml(object):
-        data = Observer('', action)
+        data = Observer("", action)
 
     auto = AutoYaml()
     try:
@@ -193,21 +192,25 @@ def create_autoyaml(name, get_load=True, get_save=False, additional=None):
             auto.data = yaml.load(f, Loader=Loader)
     except FileNotFoundError:
         auto.data = {}
-    
+
     returned = [auto]
     if get_load:
+
         def load():
             with open(name, "r") as f:
                 auto.data = yaml.load(f, Loader=Loader)
+
         returned.append(load)
     if get_save:
+
         def save():
             with open(name, "w") as f:
                 yaml.dump(dict(auto.data.value), f, Dumper=Dumper)
+
         returned.append(save)
     return returned
-    
-    
+
+
 class ColumnAttribute:
     def __init__(
         self,
@@ -387,83 +390,98 @@ class SimpleBase:
         self.connection.commit()
         return Table(self.cursor, table_name)
 
-##################
 
+##################
 
 
 class StorageColumnAttribute:
     incompatabilities = []
     name = "ATTRIBUTE"
-    
-    
+
     def __init__(self, *args):
         self.args = args
 
     def compatability_check(self, attributes):
         for attribute in attributes:
             if attribute.name in self.incompatabilities:
-                raise Exception("Incompatability between {} and {}".format(self.name, attribute.name))
+                raise Exception(
+                    "Incompatability between {} and {}".format(
+                        self.name, attribute.name
+                    )
+                )
             if attribute.name == self.name:
                 raise Exception("Attribute {} already exists".format(self.name))
-                
 
     def callback_universal(self, table, type, value):
         raise Exception("Not implemented (type: {})".format(type))
 
     def callback_int(self, table, value):
         self.callback_universal(table, "INTEGER", value)
+
     def callback_float(self, table, value):
         self.callback_universal(table, "FLOAT", value)
+
     def callback_str(self, table, value):
         self.callback_universal(table, "STR", value)
+
     def callback_bool(self, table, value):
         self.callback_universal(table, "BOOL", value)
+
     def callback_dict(self, table, value):
         self.callback_universal(table, "DICT", value)
+
     def callback_list(self, table, value):
         self.callback_universal(table, "LIST", value)
+
     def callback_set(self, table, value):
         self.callback_universal(table, "SET", value)
+
     def callback_uuid(self, table, value):
         self.callback_universal(table, "UUID", value)
+
     def callback_date(self, table, value):
         self.callback_universal(table, "DATE", value)
+
     def callback_timedelta(self, table, value):
         self.callback_universal(table, "TIMEDELTA", value)
+
     def callback_timestamp(self, table, value):
         self.callback_universal(table, "TIMESTAMP", value)
+
     def callback_blob(self, table, value):
         self.callback_universal(table, "BLOB", value)
+
     def callback_null(self, table, value):
         self.callback_universal(table, "NULL", value)
+
     def callback_any(self, table, value):
         self.callback_universal(table, "ANY", value)
+
 
 class StorageColumn:
     def __init__(self, name, type, attributes):
         self.name = name
         self.type = type
         self.attributes = attributes
-        
-        # TYPES:   ✅❌    | INT   FLOAT    STR    BOOL  DICT     LIST    SET 
+
+        # TYPES:   ✅❌    | INT   FLOAT    STR    BOOL  DICT     LIST    SET
         # ATTRIBUTES:       |----------------------------------------------------
-        # UNIQUE            | ❌     ❌     ❌     ❌     ❌     ❌     ❌ 
-        # LIMIT (int) (int) | ❌     ❌     ❌     ❌     ❌     ❌     ❌ 
-        # LINK (table name) | ❌     ❌     ❌     ❌     ❌     ❌     ❌ 
-        # AUTOINCREMENT     | ❌     ❌     ❌     ❌     ❌     ❌     ❌ 
+        # UNIQUE            | ❌     ❌     ❌     ❌     ❌     ❌     ❌
+        # LIMIT (int) (int) | ❌     ❌     ❌     ❌     ❌     ❌     ❌
+        # LINK (table name) | ❌     ❌     ❌     ❌     ❌     ❌     ❌
+        # AUTOINCREMENT     | ❌     ❌     ❌     ❌     ❌     ❌     ❌
         # DEFAULT (value)   | ❌     ❌     ❌     ❌     ❌     ❌     ❌
         # REQUIRED          | ❌     ❌     ❌     ❌     ❌     ❌     ❌
-        
-        
+
         # TYPES:   ✅❌    | UUID  DATE  TIMEDELTA  TIMESTAMP  BLOB   NULL    ANY
         # ATTRIBUTES:       |-----------------------------------------------------
-        # UNIQUE            | ❌     ❌     ❌         ❌     ❌     ❌     ❌ 
-        # LIMIT (int) (int) | ❌     ❌     ❌         ❌     ❌     ❌     ❌ 
-        # LINK (table name) | ❌     ❌     ❌         ❌     ❌     ❌     ❌ 
-        # AUTOINCREMENT     | ❌     ❌     ❌         ❌     ❌     ❌     ❌ 
-        # DEFAULT (value)   | ❌     ❌     ❌         ❌     ❌     ❌     ❌ 
+        # UNIQUE            | ❌     ❌     ❌         ❌     ❌     ❌     ❌
+        # LIMIT (int) (int) | ❌     ❌     ❌         ❌     ❌     ❌     ❌
+        # LINK (table name) | ❌     ❌     ❌         ❌     ❌     ❌     ❌
+        # AUTOINCREMENT     | ❌     ❌     ❌         ❌     ❌     ❌     ❌
+        # DEFAULT (value)   | ❌     ❌     ❌         ❌     ❌     ❌     ❌
         # REQUIRED          | ❌     ❌     ❌         ❌     ❌     ❌     ❌
- 
+
         # ATTRUBUTE:        | UNIQUE LIMIT LINK AUTOINCREMENT DEFAULT REQUIRED
         # COMPATABILITY:    |--------------------------------------------------
         # UNIQUE            | 🟦     ❌     ❌     ❌         ❌     ❌
@@ -494,26 +512,29 @@ class StorageColumn:
             attribute = storage.get_attribute(attribute)
             callbacks[self.type](attribute)(table, value)
         return value
-            
+
     def serialize(self):
         return {
             "name": self.name,
             "type": self.type,
             "attributes": self.attributes,
         }
-    
+
     @classmethod
     def deserialize(cls, data):
         return cls(data["name"], data["type"], data["attributes"])
 
+
 class StorageColumns:
     def __init__(self, *columns):
         self.columns = columns if columns else []
+
     def add_column(self, column):
         self.columns.append(column)
+
     def get_columns(self):
         return self.columns
-    
+
     def serialize(self):
         return [column.serialize() for column in self.columns]
 
@@ -523,6 +544,7 @@ class StorageColumns:
         for column in data:
             columns.append(StorageColumn.deserialize(column))
         return cls(*columns)
+
 
 class StorageTable:
     def __init__(self, storage, name):
@@ -537,51 +559,62 @@ class StorageTable:
     def data(self):
         return self.storage.data[self.name]["__DATA__"]
 
-
     def insert(self, **data):
         for column in self.columns.get_columns():
             if column.name not in data:
-                raise Exception("Column '{}' is required. Use 'None' to skip".format(column.name))
+                raise Exception(
+                    "Column '{}' is required. Use 'None' to skip".format(column.name)
+                )
         for key in data:
             if key not in [column.name for column in self.columns.get_columns()]:
                 raise Exception("Column '{}' does not exist".format(key))
         payload = {}
         for column in self.columns.get_columns():
-            column.process_insert(self.storage, self,  data[column.name])
+            column.process_insert(self.storage, self, data[column.name])
             payload[column.name] = data[column.name]
         self.storage.data[self.name]["__DATA__"].append(payload)
         self.storage.save()
         print(self.storage.data)
-        
+
 
 class AttributeUnique(StorageColumnAttribute):
     incompatabilities = []
     name = "UNIQUE"
 
     def callback_universal(self, table, type, value):
-        print(f'Таблица {table.name} получила значение {value} ({type}) для атрибута {self.name}. Аргументы: {self.args}')
+        print(
+            f"Таблица {table.name} получила значение {value} ({type}) для атрибута {self.name}. Аргументы: {self.args}"
+        )
+
+
 class AttributeLimit(StorageColumnAttribute):
     incompatabilities = []
     name = "LIMIT"
 
     def callback_universal(self, table, type, value):
-        print(f'Таблица {table.name} получила значение {value} ({type}) для атрибута {self.name}. Аргументы: {self.args}')
+        print(
+            f"Таблица {table.name} получила значение {value} ({type}) для атрибута {self.name}. Аргументы: {self.args}"
+        )
+
 
 class StorageManager:
     def __init__(self, name, log=False):
-        self.observer, self.load, self.save = create_autoyaml('t', get_save=True, additional=(lambda s, i, v: print('LOG:', v)) if log else None)
+        self.observer, self.load, self.save = create_autoyaml(
+            "t",
+            get_save=True,
+            additional=(lambda s, i, v: print("LOG:", v)) if log else None,
+        )
         self.name = name
         self.attributes = {}
         attributes = [AttributeUnique, AttributeLimit]
 
         for attribute in attributes:
             self.add_attribute(attribute)
-    
-    
+
     @property
     def data(self):
         return self.observer.data.value
-    
+
     @data.setter
     def data(self, value):
         self.observer.data = value
@@ -594,7 +627,7 @@ class StorageManager:
         if cmd[0] not in self.attributes:
             raise Exception("Attribute '{}' does not exist".format(cmd[0]))
         return self.attributes[cmd[0]](*cmd[1:])
-        
+
     def table_add(self, name, columns, force=True):
         if type(columns) is StorageColumns:
             pass
@@ -602,7 +635,7 @@ class StorageManager:
             columns = StorageColumns(*columns)
         else:
             raise TypeError("Columns must be list or StorageColumns")
-    
+
         if self.table_exists(self.name) and not force:
             raise Exception("Table already exists")
         else:
@@ -619,19 +652,19 @@ class StorageManager:
     def table_exists(self, name):
         return name in self.data
 
+
 class SimpleStorage:
     def __init__(self, name, log=False):
         self.name = name
         self.data = {}
         self.load()
-        
-    
+
     def save(self):
         with open(self.name, "w") as f:
             f.write(yaml.dump(self.data, Dumper=Dumper))
 
     def load(self):
-        try:    
+        try:
             with open(self.name, "r") as f:
                 self.data = yaml.load(f, Loader=Loader)
             return True
@@ -639,7 +672,7 @@ class SimpleStorage:
             self.save()
             self.load()
             return False
-        
+
     def table_add(self, name, default, raise_exception=False):
         if self.table_exists(name):
             if raise_exception:
@@ -652,20 +685,19 @@ class SimpleStorage:
                     name: {
                         "__DEFAULT__": default,
                         "__DATA__": [],
-
                     }
                 }
             )
-        
+
     def table_exists(self, name):
         return name in self.data
-    
+
     def table_get(self, name):
         return self.data[name]
 
     def table_list(self):
         return self.data.keys()
-    
+
     def table_remove(self, name):
         if self.table_exists(name):
             del self.data[name]
@@ -692,6 +724,7 @@ class SimpleStorage:
             return self.data[name]["__COLUMNS__"].keys()
         else:
             raise Exception("Table does not exist")
+
     def record_validate(self, name, use_default=True, **data):
         if self.table_exists(name):
             columns = self.table_columns(name)
@@ -701,7 +734,9 @@ class SimpleStorage:
                     if use_default:
                         data[column] = default[column]
                     else:
-                        raise Exception("Column '{}' is required. Use 'None' to skip".format(column))
+                        raise Exception(
+                            "Column '{}' is required. Use 'None' to skip".format(column)
+                        )
             for key in data:
                 if key not in columns:
                     raise Exception("Column '{}' does not exist".format(key))
@@ -715,7 +750,7 @@ class SimpleStorage:
         if self.record_validate(name, **data):
             self.data[name]["__DATA__"].append(data)
             self.save()
-    
+
     def record_get_by_id(self, name, id):
         if not self.table_exists(name):
             raise Exception("Table does not exist")
@@ -736,7 +771,7 @@ class SimpleStorage:
             else:
                 return record
         return None
-    
+
     def record_gets(self, name, *where):
         """
         >>> record_gets("test", ["field", "value"], ["field2", "value"])
@@ -753,7 +788,7 @@ class SimpleStorage:
             else:
                 result.append(record)
         return result
-    
+
     def record_get_id(self, name, *where):
         """
         >>> record_get_id("test", ["field", "value"], ["field2", "value"])
@@ -769,7 +804,7 @@ class SimpleStorage:
             else:
                 return i
         return None
-    
+
     def record_remove(self, name, *where):
         if not self.table_exists(name):
             raise Exception("Table does not exist")
@@ -781,13 +816,13 @@ class SimpleStorage:
             else:
                 del records[i]
         self.save()
-    
+
     def record_remove_by_id(self, name, id):
         if not self.table_exists(name):
             raise Exception("Table does not exist")
         del self.data[name]["__DATA__"][id]
         self.save()
-    
+
     def record_removes(self, name, *where):
         if not self.table_exists(name):
             raise Exception("Table does not exist")
@@ -795,7 +830,7 @@ class SimpleStorage:
         while record := self.record_get(name, *where):
             self.record_remove(name, *where)
         self.save()
-    
+
     def record_update(self, name, *where, **data):
         if not self.table_exists(name):
             raise Exception("Table does not exist")
