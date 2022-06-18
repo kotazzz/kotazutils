@@ -16,8 +16,21 @@ def mark_to_ansi(text, console=None):
     console.file.seek(0)
     return ANSI(val)
 
+def get_args(func, exclude_self=True):
+    signature = inspect.signature(func)
+    return [
+        (i, k)
+        for i, (k, v) in enumerate(signature.parameters.items())
+        if k != "self" or not exclude_self
+    ]
 
-
+def get_default_args(func):
+    signature = inspect.signature(func)
+    return {
+        k: v.default
+        for k, v in signature.parameters.items()
+        if v.default is not inspect.Parameter.empty
+    }
 class RichCompletion:
     def __init__(self, text, display, meta):
         self.text = text
@@ -29,10 +42,11 @@ class RichCompleter(Completer):
         self.completions = data
 
     def get_completions(self, document, complete_event):
-        words = shlex.split(document.text_before_cursor)
+        text = document.text_before_cursor
+        words = shlex.split(text)
         last_word = words[-1] if words else ""
         completions = self.completions
-        text = document.text_before_cursor
+        
 
         def data_to_completion(data):
             return Completion(
@@ -100,9 +114,41 @@ class Command:
                         args[i] = required_type(args[i])
                     except:
                         errors.append([i, type(args[i]), required_type])
+    def try_autocast(self, *args):
+        """
+        >>> try_autocast("1", "true", "String", "1.02")
+        1, True, "String", 1.02
+        """
+        casters = {
+            int: lambda x: int(x) if x.isdigit() else x,
+            float: lambda x: float(x) if x.replace(".", "").isdigit() else None,
+            bool: lambda x: True if x.lower() == "true" else False,
+        }
+        new_values = {}
+        for i, (name, hint) in enumerate(get_type_hints(self.function).items()):
+            if i > len(args)-1:
+                break
+            if hint in casters:
+                new_value = casters[hint](args[i])
+                if new_value is not None:
+                    new_values[name] = new_value
+            else:
+                new_values[name] = args[i]
+        return new_values
 
     def callback(self, *args):
-        return self.function(self, *args)
+        try:
+            all_args = get_args(self.function)
+            non_hinted = [args[i-1] for i, arg in all_args if get_type_hints(self.function).get(arg) is None]
+            return self.function(self, *non_hinted, **self.try_autocast(*args[len(non_hinted):]))
+        except Exception as e:
+            return self.function(self, *args)
+    def required(self):
+        all_args = get_args(self.function)
+        hinted = [arg for i, arg in all_args if get_type_hints(self.function).get(arg) is not None]
+        default_values = get_default_args(self.function)
+        # return hinted args without default value
+        return [arg for arg in hinted if default_values.get(arg) is None]
 
     def subcommand(
         self, name, brief="This is brief", description="This is description"
@@ -112,13 +158,6 @@ class Command:
         return command
 
     def make_rich_completion(self):
-        def get_default_args(func):
-            signature = inspect.signature(func)
-            return {
-                k: v.default
-                for k, v in signature.parameters.items()
-                if v.default is not inspect.Parameter.empty
-            }
 
         type_hints = get_type_hints(self.function)
         default_args = get_default_args(self.function)
@@ -149,7 +188,11 @@ class CliApp:
         self.console = Console()
         self.session = PromptSession(self.prompt)
         self.completer = RichCompleter()
-        
+        self.state = "init"
+    
+    def exit_command(self):
+        self.console.print("Bye!")
+        self
     def add_command(self, command):
         self.commands[command.name] = command
 
@@ -165,56 +208,59 @@ class CliApp:
         return result
 
     def run(self):
-        self.completer.update_completions(self.get_completions())
-        text = self.session.prompt("> ", completer=self.completer)
-        print(text)
+        self.state = "run"
+        def get_command(args, commands, prev=None):
+            for command in commands:
+                if command.name == args[0]:
+                    if len(args) > 1:
+                        return get_command(args[1:], command.subcommands, command)
+                    else:
+                        return command, args[1:]
+            return prev, *args
+        while self.state == "run":
+            try:
+                self.completer.update_completions(self.get_completions())
+                text = self.session.prompt("> ", completer=self.completer)
+                full_command = shlex.split(text)
+                if not text:
+                    continue
+                else:
+                    cmd, *args = get_command(full_command, self.commands.values())
+                    if cmd:
+                        if args == [[]]:
+                            args = []
+                        required = cmd.required()
+                        if len(required) > len(args):
+                            required_count = len(required) - len(args)
+                            required_sequence = ", ".join(required[len(args):])
+                            self.console.print(f"{cmd.name} requires {required_count} more arguments: {required_sequence}")
+                            continue
+                        cmd.callback(self, *args)
+                    else:
+                        self.console.print("Unknown command")
+            except EOFError:
+                self.state = "exit"
+            except KeyboardInterrupt:
+                self.console.print("Используйте Ctrl+D для выхода")
+            except Exception:
+                self.console.print_exception()
+        
 
 
 c = CliApp("App")
 
 @c.command("echo", "Echo text", "Echo something")
-def echo(self, text: str, times: int = 2, without_hello: bool = False):
+def echo(self, cli, text: str, times: int = 2, without_hello: bool = False):
     text = "Hello, " + text if not without_hello else text
-    return ', '.join([text] * times)
+    cli.console.print(', '.join([text] * times))
 
 @echo.subcommand("subcommand", "Echo text", "Echo something")
-def echo_subcommand(self, text: str, times: int = 2, without_hello: bool = False):
-    text = "Subcommand, " + text if not without_hello else text
-    return ', '.join([text] * times)
+def echo_subcommand(self, cli, first_word:str, text: str, times: int = 2, without_hello: bool = False):
+    text = first_word + ", " + text if not without_hello else text
+    cli.console.print(', '.join([text] * times))
 
 @c.command("exit", "Exit from app", "Close this app")
-def exit_(self):
-    return 0
+def exit_(self, cli):
+    cli.state = "exit"
 
 c.run()
-
-# @echo.subcommand("test", "Test", "Test something")
-# def test(self, text: str = "test"):
-#     print("Test: " + text)
-#
-# print(echo.callback("Hello", 3, True))
-# print(test)
-# print(echo.print_help())
-
-
-
-
-
-# completions = {
-#     RichCompletion("echo", "[bold]echo[/] <'test' \[text]|text>", "Выводит текст",): {
-#         RichCompletion(
-#             "test",
-#             "[bold]test[/] \[text]",
-#             "Выводит тестовый текст",
-#         )
-#     },
-#     RichCompletion(
-#         "echo2",
-#         "[bold]echo2[/] <Обязательный|'Подкоманда' \[Необязательный арг подкоманды]>",
-#         "Тестовая команда",
-#     ): None,
-# }
-# 
-# c = MyCustomCompleter()
-# c.update_completions(completions)
-
