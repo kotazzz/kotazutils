@@ -1,5 +1,6 @@
+import shlex
 from rich.console import Console
-from prompt_toolkit import PromptSession
+from prompt_toolkit import ANSI, PromptSession
 
 from prompt_toolkit.completion import Completer, Completion
 
@@ -53,11 +54,24 @@ class CliApp:
         pass
 
 from typing import get_type_hints
-
+from rich.text import Text
+import io
 #! move to top ################################################################
 
 
+def mark_to_ansi(text, console=None):
+    if console is None:
+        console = Console(file=io.StringIO(), force_terminal=True)
+    console.print(text, markup=True, end='')
+    val = console.file.getvalue()
+    console.file.seek(0)
+    return ANSI(val)
 
+
+
+class HashableCompletion(Completion):
+    def __hash__(self):
+        return hash((self.text, id(self)))
     
 # @Command("echo", "Echo", "Echo something")
 # def echo(self, text: str, times: int = 2, without_hello: bool = False):
@@ -73,19 +87,57 @@ from typing import get_type_hints
 # print(echo.print_help())
 
 class MyCustomCompleter(Completer):
+    def update_completions(self, data):
+        self.completions = data
+
+    
     def get_completions(self, document, complete_event):
-        # Display this completion, black on yellow.
-        yield Completion('completion1', start_position=0,
-                         style='bg:ansiyellow fg:ansiblack')
+        words = shlex.split(document.text_before_cursor)
+        last_word = words[-1] if words else ""
+        completions = self.completions
+        text = document.text_before_cursor
+        def data_to_completion(data):
+            return Completion(data.text.lstrip(last_word), display=data.display, display_meta=data.meta)
+        def get_completions_for_word(word, completions, remain_words):
+            # print(word, completions, remain_words)
+            possible = {}
+            if completions:
+                if isinstance(completions, set):
+                    completions = {completion: None for completion in completions}
+                for completion, nested in completions.items():
+                    if completion.text.startswith(word):
+                        possible[completion] = nested
+                    if word == completion.text:
+                        if remain_words:
+                            return get_completions_for_word(remain_words.pop(0), nested, remain_words)
+                        elif text.endswith(' ') and nested:
+                            return nested.keys() if isinstance(nested, dict) else list(nested)
+            return possible
+        if words:
+            c = get_completions_for_word(words.pop(0), completions, words)
+            for data in c:
+                completion = data_to_completion(data)
+                yield completion
+        else:
+            for completion in completions:
+                yield data_to_completion(completion)
 
-        # Underline completion.
-        yield Completion('completion2', start_position=0,
-                         style='underline')
+class RichCompletion:
+    def __init__(self, text, display, meta):
+        self.text = text
+        self.display = mark_to_ansi(display)
+        self.meta = mark_to_ansi(meta)
+    
+    
+completions = {
+    RichCompletion("echo", "[bold]echo[/] <'test' \[text]|text>", "Выводит текст", ): {
+        RichCompletion("test", "[bold]test[/] \[text]", "Выводит тестовый текст", )
+        },
+    RichCompletion("echo2", "[bold]echo2[/] <Обязательный|'Подкоманда' \[Необязательный арг подкоманды]>", "Тестовая команда", ): None
+    }
 
-        # Specify class name, which will be looked up in the style sheet.
-        yield Completion('completion3', start_position=0,
-                         style='class:special-completion')
+c = MyCustomCompleter()
+c.update_completions(completions)
 
-
-session = PromptSession('> ', completer=MyCustomCompleter())
-#text = session.prompt()
+session = PromptSession('> ', completer=c)
+text = session.prompt()
