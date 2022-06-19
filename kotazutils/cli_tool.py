@@ -1,12 +1,21 @@
+import datetime
+import time
 import inspect
 from typing import get_type_hints
 import io
 import shlex
 from rich.console import Console
 from prompt_toolkit import ANSI, PromptSession
-
 from prompt_toolkit.completion import Completer, Completion
-
+from prompt_toolkit.history import InMemoryHistory
+from prompt_toolkit.auto_suggest import AutoSuggestFromHistory
+from prompt_toolkit.application import get_app
+from prompt_toolkit.formatted_text import (
+    HTML,
+    fragment_list_width,
+    merge_formatted_text,
+    to_formatted_text,
+)
 
 def mark_to_ansi(text, console=None):
     # TODO: may be move to utils?
@@ -204,14 +213,22 @@ class CliApp:
         self.version = version
 
         self.commands = {}
-        self.toolbar_handlers = []
+        self.toolbar_handlers = [
+            lambda: "[b]Time:[/] " + datetime.datetime.now().strftime("%H:%M:%S"),
+        ]
         self.right = None
         self.prompt = lambda *args: "> "
 
         self.console = Console()
-        self.session = PromptSession(self.prompt)
+        self.session = PromptSession(self.prompt, history=InMemoryHistory(), auto_suggest=AutoSuggestFromHistory())
         self.completer = RichCompleter()
         self.state = "init"
+        self.pannels = [
+            [
+                [lambda: "[b blue]{}[/]".format(self.name)],
+                [lambda: "[u red]Welcome to app![/]"]
+            ]
+        ]
 
     def exit_command(self):
         self.console.print("Bye!")
@@ -231,6 +248,48 @@ class CliApp:
             result |= command.make_rich_completion()
         return result
 
+    def get_prompt(self):
+        """
+        Build the prompt dynamically every time its rendered.
+        """
+        def build_panel(left, right):
+            reverse = lambda t: f'[r]{t}[/]'
+            left_part = mark_to_ansi(reverse(left))
+            right_part = mark_to_ansi(reverse(right))
+
+            used_width = sum(
+                [
+                    fragment_list_width(to_formatted_text(left_part)),
+                    fragment_list_width(to_formatted_text(right_part)),
+                ]
+            )
+
+            total_width = self.console.width
+            padding_size = total_width - used_width
+            
+            padding = mark_to_ansi('[on #222222]'+" " * padding_size+'[/]')
+            return [left_part, padding, right_part]
+        
+        def build_side(handlers):
+            return ' '.join(map(lambda x: x(), handlers))
+        
+        result = []
+        for panel in self.pannels:
+            left, right = build_side(panel[0]), build_side(panel[1])
+            result += build_panel(left, right)
+            result.append('\n')
+        return merge_formatted_text([*result, mark_to_ansi("[blue b i]# [/]")])
+        
+    def add_toolbar(self, toolbar):
+        self.toolbar_handlers.append(toolbar)
+
+    def get_toolbar(self):
+        output = []
+        for handler in self.toolbar_handlers:
+            output.append(handler())
+        return mark_to_ansi(' '.join(output))
+        
+
     def run(self):
         self.state = "run"
 
@@ -246,7 +305,7 @@ class CliApp:
         while self.state == "run":
             try:
                 self.completer.update_completions(self.get_completions())
-                text = self.session.prompt("> ", completer=self.completer)
+                text = self.session.prompt(self.get_prompt(), completer=self.completer, bottom_toolbar=self.get_toolbar, refresh_interval=0.5)
                 full_command = shlex.split(text)
                 if not text:
                     continue
@@ -272,5 +331,3 @@ class CliApp:
                 self.console.print("Используйте Ctrl+D для выхода")
             except Exception:
                 self.console.print_exception()
-
-
