@@ -1,3 +1,4 @@
+from curses import raw
 import datetime
 import inspect
 import io
@@ -108,12 +109,12 @@ class Command:
         name,
         brief="This is brief",
         description="This is description",
-        arg_help=None,
+        raw_format=False,
     ):
         self.name = name
         self.brief = brief
         self.description = description
-        self.arg_help = arg_help if arg_help else {}
+        self.raw_format = raw_format
 
         self.subcommands = []
 
@@ -154,6 +155,8 @@ class Command:
         return new_values
 
     def callback(self, *args):
+        if self.raw_format:
+            return self.function(self, *args)
         try:
             all_args = get_args(self.function)
             non_hinted = [
@@ -191,15 +194,23 @@ class Command:
         default_args = get_default_args(self.function)
         parametrs = []
         for key, value in type_hints.items():
-            parametrs.append(
-                f'<{key}:{value.__name__}{"="+repr(v) if (v:=default_args.get(key)) is not None else ""}>'
-            )
+            if (default := default_args.get(key)) is not None:
+                parametrs.append(f'\[{key}:{value.__name__}={repr(default)}]')
+            else:
+                parametrs.append(f'<{key}:{value.__name__}>')
+
+        if self.subcommands:
+            parametrs.insert(0,"<" + '|'.join(command.name for command in self.subcommands)+  "> |")
+        
         nested_completion = {}
-
         for command in self.subcommands:
-            parametrs[0] = parametrs[0][0] + f"{command.name}|" + parametrs[0][1:]
             nested_completion |= command.make_rich_completion()
-
+            
+        name = inspect.getfullargspec(self.function).varargs
+        if name is not None:
+            parametrs.append(f"\[{name}...]")
+        
+        
         return {
             RichCompletion(
                 self.name, f'[b]{self.name}[/] {" ".join(parametrs)}', self.brief
@@ -242,8 +253,8 @@ class CliApp:
     def add_command(self, command):
         self.commands[command.name] = command
 
-    def command(self, name, brief="This is brief", description="This is description"):
-        command = Command(name, brief, description)
+    def command(self, name, brief="This is brief", description="This is description", raw_format=False):
+        command = Command(name, brief, description, raw_format)
         self.add_command(command)
         return command
 
