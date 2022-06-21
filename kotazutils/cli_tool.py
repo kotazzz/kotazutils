@@ -352,5 +352,5 @@ class CliApp:
                 self.state = "exit"
             except KeyboardInterrupt:
                 self.console.print("Используйте Ctrl+D для выхода")
-            except Exception:
+            except Exception as e:
                 self.console.print_exception()

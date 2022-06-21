@@ -2,3 +2,5 @@ build
 kotazutils.egg-info
 kotazutils/__pycache__
 kotazutils/__test.py
+dist
+dist_
