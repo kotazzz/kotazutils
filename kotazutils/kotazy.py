@@ -108,8 +108,8 @@ class KotazyProcessor:
             if len(v) > 1
             else self.ast_load(v[0]),
             "def": lambda n, c: self.ast_define(n, c),
-            "lse": lambda: print(list(self.environment.keys())),
-            "fle": lambda: print(self.environment),
+            "lse": lambda: print(list(self.environment.keys())), # list system environment
+            "fle": lambda: print(self.environment), # full list environment
         }
         self.reset_environment()
 
@@ -177,15 +177,15 @@ class KotazyRunner:
         self.evaluator = EvalProcessor()
         self.processor.install_environments(
             {
-                "clc": lambda s: self.evaluator.eval_expression(s["val"])
+                "clc": lambda s: self.evaluator.eval_expression(s["val"]) # calculate
                 if s["type"] == "string"
                 else None,
-                "pcl": lambda s: print(
+                "pcl": lambda s: print( # print calculate
                     self.evaluator.eval_expression(s["val"])
                     if s["type"] == "string"
                     else None
                 ),
-                "ecl": lambda s: self.evaluator.eval_expression(
+                "ecl": lambda s: self.evaluator.eval_expression( # evaluate calculate
                     s["val"], self.processor.environment
                 )
                 if s["type"] == "string"
