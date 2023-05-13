@@ -1,4 +1,3 @@
-from curses import raw
 import datetime
 import inspect
 import io

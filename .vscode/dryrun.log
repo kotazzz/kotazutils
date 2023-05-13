@@ -1,0 +1,6 @@
+make --dry-run --always-make --keep-going --print-directory
+make: Entering directory '/home/kotaz/prj/my/kotazutils'
+mv dist/* dist_
+python setup.py bdist_wheel
+make: Leaving directory '/home/kotaz/prj/my/kotazutils'
+ 

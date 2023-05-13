@@ -1,0 +1,265 @@
+make all --print-data-base --no-builtin-variables --no-builtin-rules --question
+make: *** No rule to make target 'all'.  Stop.
+
+# GNU Make 4.3
+# Built for x86_64-pc-linux-gnu
+# Copyright (C) 1988-2020 Free Software Foundation, Inc.
+# License GPLv3+: GNU GPL version 3 or later <http://gnu.org/licenses/gpl.html>
+# This is free software: you are free to change and redistribute it.
+# There is NO WARRANTY, to the extent permitted by law.
+
+# Make data base, printed on Mon Feb 13 21:00:13 2023
+
+# Variables
+
+# environment
+LC_ALL = C
+# environment
+LC_NAME = ru_RU.UTF-8
+# environment
+LC_NUMERIC = ru_RU.UTF-8
+# environment
+VSCODE_CWD = /home/kotaz
+# environment
+LESS_TERMCAP_me = [0m
+# environment
+LC_ADDRESS = ru_RU.UTF-8
+# default
+MAKE_COMMAND := make
+# environment
+VSCODE_HANDLES_SIGPIPE = true
+# automatic
+@D = $(patsubst %/,%,$(dir $@))
+# environment
+VSCODE_HANDLES_UNCAUGHT_ERRORS = true
+# default
+.VARIABLES := 
+# environment
+PWD = /home/kotaz/prj/my/kotazutils
+# automatic
+%D = $(patsubst %/,%,$(dir $%))
+# environment
+MAIL = /var/spool/mail/kotaz
+# environment
+XDG_DATA_DIRS = /home/kotaz/.local/share/flatpak/exports/share:/var/lib/flatpak/exports/share:/usr/local/share:/usr/share:/var/lib/snapd/desktop
+# environment
+OLDPWD = /home/kotaz
+# automatic
+^D = $(patsubst %/,%,$(dir $^))
+# automatic
+%F = $(notdir $%)
+# environment
+LANG = C
+# default
+.LOADED := 
+# environment
+LESS_TERMCAP_md = [01;32m
+# default
+.INCLUDE_DIRS = /usr/include /usr/local/include /usr/include
+# makefile
+MAKEFLAGS = pqrR
+# environment
+LESS_TERMCAP_so = [01;47;34m
+# makefile
+CURDIR := /home/kotaz/prj/my/kotazutils
+# environment
+APPLICATION_INSIGHTS_NO_DIAGNOSTIC_CHANNEL = 1
+# automatic
+*D = $(patsubst %/,%,$(dir $*))
+# environment
+LESS_TERMCAP_ue = [0m
+# environment
+MFLAGS = -pqrR
+# default
+.SHELLFLAGS := -c
+# environment
+QT_LINUX_ACCESSIBILITY_ALWAYS_ON = 1
+# automatic
++D = $(patsubst %/,%,$(dir $+))
+# environment
+P9K_SSH = 1
+# makefile (from 'Makefile', line 1)
+MAKEFILE_LIST := Makefile
+# automatic
+@F = $(notdir $@)
+# environment
+XDG_SESSION_TYPE = tty
+# automatic
+?D = $(patsubst %/,%,$(dir $?))
+# automatic
+*F = $(notdir $*)
+# environment
+DBUS_SESSION_BUS_ADDRESS = unix:path=/run/user/1000/bus
+# automatic
+<D = $(patsubst %/,%,$(dir $<))
+# environment
+VSCODE_NLS_CONFIG = {"locale":"ru","availableLanguages":{"*":"ru"},"_languagePackId":"a87b41d0dcd18228348db679c449ecf0.ru","_translationsConfigFile":"/home/kotaz/.vscode-server/data/clp/a87b41d0dcd18228348db679c449ecf0.ru/tcf.json","_cacheRoot":"/home/kotaz/.vscode-server/data/clp/a87b41d0dcd18228348db679c449ecf0.ru","_resolvedLanguagePackCoreLocation":"/home/kotaz/.vscode-server/data/clp/a87b41d0dcd18228348db679c449ecf0.ru/441438abd1ac652551dbe4d408dfcec8a499b8bf","_corruptedFile":"/home/kotaz/.vscode-server/data/clp/a87b41d0dcd18228348db679c449ecf0.ru/corrupted.info","_languagePackSupport":true}
+# environment
+PLAN9 = /opt/plan9
+# default
+MAKE_HOST := x86_64-pc-linux-gnu
+# makefile
+SHELL = /bin/sh
+# environment
+LESS_TERMCAP_us = [01;36m
+# default
+MAKECMDGOALS := all
+# environment
+SHLVL = 1
+# environment
+MAKELEVEL := 0
+# default
+MAKE = $(MAKE_COMMAND)
+# environment
+PATH = /home/kotaz/.vscode-server/bin/441438abd1ac652551dbe4d408dfcec8a499b8bf/bin/remote-cli:/home/kotaz/.local/bin:/usr/local/sbin:/usr/local/bin:/usr/bin:/usr/lib/jvm/default/bin:/usr/bin/site_perl:/usr/bin/vendor_perl:/usr/bin/core_perl:/opt/plan9/bin:/var/lib/snapd/snap/bin
+# environment
+LESS_TERMCAP_se = [0m
+# default
+MAKEFILES := 
+# environment
+LC_MONETARY = ru_RU.UTF-8
+# environment
+MOTD_SHOWN = pam
+# automatic
+^F = $(notdir $^)
+# environment
+LC_TIME = ru_RU.UTF-8
+# environment
+LESS_TERMCAP_mb = [01;32m
+# environment
+SSH_CLIENT = 192.168.0.11 56351 22
+# environment
+LC_TELEPHONE = ru_RU.UTF-8
+# automatic
+?F = $(notdir $?)
+# environment
+LS_COLORS = 
+# automatic
++F = $(notdir $+)
+# environment
+LESS = -R
+# 'override' directive
+GNUMAKEFLAGS := 
+# environment
+BROWSER = /home/kotaz/.vscode-server/bin/441438abd1ac652551dbe4d408dfcec8a499b8bf/bin/helpers/browser.sh
+# environment
+LOGNAME = kotaz
+# makefile
+.DEFAULT_GOAL := build
+# environment
+DISPLAY = localhost:12.0
+# environment
+USER = kotaz
+# default
+MAKE_VERSION := 4.3
+# environment
+LC_MEASUREMENT = ru_RU.UTF-8
+# environment
+DEBUGINFOD_URLS = https://debuginfod.archlinux.org 
+# environment
+VSCODE_AGENT_FOLDER = /home/kotaz/.vscode-server
+# environment
+_ = /usr/bin/make
+# environment
+LC_PAPER = ru_RU.UTF-8
+# environment
+XDG_RUNTIME_DIR = /run/user/1000
+# environment
+VSCODE_IPC_HOOK_CLI = /run/user/1000/vscode-ipc-55116096-1f7e-4069-b620-4d30d1dd1682.sock
+# environment
+XDG_SESSION_CLASS = user
+# environment
+VSCODE_AMD_ENTRYPOINT = vs/workbench/api/node/extensionHostProcess
+# environment
+HOME = /home/kotaz
+# environment
+ELECTRON_RUN_AS_NODE = 1
+# environment
+XDG_SESSION_ID = 8
+# default
+.RECIPEPREFIX := 
+# automatic
+<F = $(notdir $<)
+# default
+SUFFIXES := 
+# environment
+LS_OPTIONS = --color=auto
+# default
+.FEATURES := target-specific order-only second-expansion else-if shortest-stem undefine oneshell nocomment grouped-target extra-prereqs archives jobserver output-sync check-symlink guile load
+# environment
+PKGFILE_PROMPT_INSTALL_MISSING = 1
+# environment
+LC_IDENTIFICATION = ru_RU.UTF-8
+# environment
+SSH_CONNECTION = 192.168.0.11 56351 192.168.0.10 22
+# variable set hash-table stats:
+# Load=90/1024=9%, Rehash=0, Collisions=11/120=9%
+
+# Pattern-specific Variable Values
+
+# No pattern-specific variable values.
+
+# Directories
+
+# . (device 2049, inode 3932278): 17 files, no impossibilities.
+
+# 17 files, no impossibilities in 1 directories.
+
+# Implicit Rules
+
+# No implicit rules.
+
+# Files
+
+# Not a target:
+Makefile:
+#  Implicit rule search has been done.
+#  Last modified 2022-09-15 19:37:06.866154841
+#  File has been updated.
+#  Successfully updated.
+
+# Not a target:
+.DEFAULT:
+#  Implicit rule search has not been done.
+#  Modification time never checked.
+#  File has not been updated.
+
+# Not a target:
+all:
+#  Command line target.
+#  Implicit rule search has been done.
+#  File does not exist.
+#  File has not been updated.
+
+build:
+#  Implicit rule search has not been done.
+#  Modification time never checked.
+#  File has not been updated.
+#  recipe to execute (from 'Makefile', line 2):
+	mv dist/* dist_
+	python setup.py bdist_wheel
+
+install:
+#  Implicit rule search has not been done.
+#  Modification time never checked.
+#  File has not been updated.
+#  recipe to execute (from 'Makefile', line 6):
+	pip install dist/*.whl --force-reinstall
+
+# files hash-table stats:
+# Load=6/1024=1%, Rehash=0, Collisions=0/16=0%
+# VPATH Search Paths
+
+# No 'vpath' search paths.
+
+# No general ('VPATH' variable) search path.
+
+# strcache buffers: 1 (0) / strings = 23 / storage = 201 B / avg = 8 B
+# current buf: size = 8162 B / used = 201 B / count = 23 / avg = 8 B
+
+# strcache performance: lookups = 30 / hit rate = 23%
+# hash-table stats:
+# Load=23/8192=0%, Rehash=0, Collisions=0/30=0%
+# Finished Make data base on Mon Feb 13 21:00:13 2023
+
+ 
